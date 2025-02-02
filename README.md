@@ -1,10 +1,8 @@
-# Project Title
-
-ShoeBot
+# ShoeBot
 
 ## Description
 
-Simple Discord bot which currently has the capacity to capacity to scan a Discord server's text channel and copy over the messages from that specific text channel and into a target channel
+* Simple Discord bot which currently has the capacity to capacity to scan a Discord server's text channel and copy over the messages from that specific text channel and into a target channel
 
 ## Getting Started
 
