@@ -21,7 +21,7 @@ npm install dotenv
 ### Executing program
 
 ```
-npm index.js
+node index.js
 ```
 
 ## Help
