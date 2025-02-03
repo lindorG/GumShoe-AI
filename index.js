@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { Client, GatewayIntentBits, EmbedBuilder, SlashCommandBuilder, REST, Routes } from 'discord.js';
+import { Client, GatewayIntentBits, EmbedBuilder, SlashCommandBuilder, REST, Routes, InteractionResponseType } from 'discord.js';
 import fs from 'fs';
 
 const client = new Client({
@@ -19,23 +19,22 @@ const LAST_EMBED_FILE = 'last_embedded_message_id.txt';
 const TARGET_GUILD_ID = process.env.TARGET_GUILD_ID;
 const SOURCE_CHANNEL_ID = process.env.SOURCE_CHANNEL_ID;
 const TARGET_CHANNEL_ID = process.env.TARGET_CHANNEL_ID;
-// const CHANNEL_ID = process.env.CHANNEL_ID;
 
-const getLastEmbeddedMessageId = () => {
+const getEmbeddedMessageIds = () => {
     if (fs.existsSync(LAST_EMBED_FILE)) {
-        return fs.readFileSync(LAST_EMBED_FILE, 'utf8');
+        return fs.readFileSync(LAST_EMBED_FILE, 'utf8').trim().split('\n');
     }
-    return null;
+    return [];
 };
 
-const setLastEmbeddedMessageId = (messageId) => {
-    fs.writeFileSync(LAST_EMBED_FILE, messageId, 'utf8');
+const addEmbeddedMessageId = (messageId) => {
+    fs.appendFileSync(LAST_EMBED_FILE, `${messageId}\n`, 'utf8');
 };
 
 const commands = [
     new SlashCommandBuilder()
         .setName('clean')
-        .setDescription('Deletes the last 50 messages sent within the past hour.')
+        .setDescription('Deletes the last 50 messages sent by the bot within the past 2 hours.')
         .toJSON()
 ];
 
@@ -45,7 +44,7 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     const sourceChannel = await client.channels.fetch(SOURCE_CHANNEL_ID);
     const targetChannel = await client.channels.fetch(TARGET_CHANNEL_ID);
-    const lastEmbeddedId = getLastEmbeddedMessageId();
+    const embeddedMessageIds = new Set(getEmbeddedMessageIds());
 
     try {
         await rest.put(
@@ -57,33 +56,43 @@ client.once('ready', async () => {
         console.error('Error registering slash command:', error);
     }
 
-    let options = { limit: 100 };
-    if (lastEmbeddedId) {
-        options.after = lastEmbeddedId;
-    }
+    let beforeMessageId = null;
+    let hasMore = true;
 
-    const messages = await sourceChannel.messages.fetch(options);
-    const sortedMessages = [...messages.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+    while (hasMore) {
+        const options = { limit: 100 };
+        if (beforeMessageId) options.before = beforeMessageId;
 
-    for (const message of sortedMessages) {
-        if (!message.author.bot) {
-            const embed = new EmbedBuilder()
-                .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
-                .setColor(0x5865F2)
-                .setTimestamp(message.createdAt);
+        const messages = await sourceChannel.messages.fetch(options);
+        const sortedMessages = [...messages.values()].reverse();
 
-            if (message.content.trim()) {
-                embed.setDescription(message.content);
+        for (const message of sortedMessages) {
+            if (embeddedMessageIds.has(message.id)) continue;
+
+            if (!message.author.bot) {
+                const embed = new EmbedBuilder()
+                    .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
+                    .setColor(0x5865F2)
+                    .setTimestamp(message.createdAt);
+
+                if (message.content.trim()) {
+                    embed.setDescription(message.content);
+                }
+
+                if (message.attachments.size > 0) {
+                    const attachment = message.attachments.first();
+                    embed.setImage(attachment.url);
+                }
+
+                await targetChannel.send({ embeds: [embed] });
+                addEmbeddedMessageId(message.id);
+                embeddedMessageIds.add(message.id);
             }
 
-            if (message.attachments.size > 0) {
-                const attachment = message.attachments.first();
-                embed.setImage(attachment.url);
-            }
-
-            await targetChannel.send({ embeds: [embed] });
-            setLastEmbeddedMessageId(message.id);
+            beforeMessageId = message.id;
         }
+
+        hasMore = messages.size === 100;
     }
 });
 
@@ -91,7 +100,9 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || message.channel.id !== SOURCE_CHANNEL_ID) return;
 
     const targetChannel = client.channels.cache.get(TARGET_CHANNEL_ID);
-    if (targetChannel) {
+    const embeddedMessageIds = new Set(getEmbeddedMessageIds());
+
+    if (targetChannel && !embeddedMessageIds.has(message.id)) {
         const embed = new EmbedBuilder()
             .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
             .setColor(0x5865F2)
@@ -107,28 +118,36 @@ client.on('messageCreate', async (message) => {
         }
 
         await targetChannel.send({ embeds: [embed] });
-        setLastEmbeddedMessageId(message.id);
+        addEmbeddedMessageId(message.id);
     }
 });
 
 client.on('interactionCreate', async interaction => {
     if (!interaction.isCommand() || interaction.commandName !== 'clean') return;
 
-    const channel = client.channels.cache.get(TARGET_CHANNEL_ID);
+    const channel = interaction.channel;
     if (!channel || !channel.isTextBased()) return;
 
     try {
         const messages = await channel.messages.fetch({ limit: 50 });
-        const twoHoursAgo = Date.now() - 60 * 120 * 1000;
+        const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
 
-        const messagesToDelete = messages.filter(msg => msg.createdTimestamp >= twoHoursAgo)
+        const messagesToDelete = messages.filter(msg =>
+            msg.author.id === client.user.id && msg.createdTimestamp >= twoHoursAgo
+        );
 
         await channel.bulkDelete(messagesToDelete, true);
 
-        await interaction.reply({ content: `Deleted ${messagesToDelete.size} messages from the past two hours.`, ephemeral: true });
+        await interaction.reply({
+            content: `🗑️ Deleted ${messagesToDelete.size} bot messages from the past 2 hours.`,
+            flags: 64
+        });
     } catch (error) {
         console.error('Error deleting messages:', error);
-        await interaction.reply({ content: 'An error occurred while trying to delete messages.', ephemeral: true });
+        await interaction.reply({
+            content: '⚠️ An error occurred while trying to delete messages.',
+            flags: 64
+        });
     }
 });
 
