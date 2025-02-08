@@ -7,6 +7,7 @@
 ## Getting Started
 
 ### Dependencies
+must have [node.js](https://nodejs.org/en/download)
 ```
 npm install discord.js
 npm install dotenv
@@ -14,7 +15,7 @@ npm install dotenv
 
 ### Installing
 
-Through the [Discord Development Portal](https://discord.com/developers/applications), create a new application. In the settings, visit "OAuth2", visit the OAuth2 URL generator, check "bot", then scroll down and check "Administrator" to invite your newly created bot into
+Through the [Discord Development Portal](https://discord.com/developers/applications), create a new application. In the settings, visit "OAuth2", then visit "OAuth2 URL generator" and checkmark "bot". Then scroll down and checkmarket "Administrator" as well. Use the URL that has been generated below to invite your newly created bot applicaiton into server(s) of your choosing. Now, all you must do is visit the "Bot" seciton of settings within the development portal, and in the "Token" area, click "Generate Token"/"Reset Token", and insert the generated token into the ``.env`` file, which is located in the main project files, within the quotations.
 
 ### Executing program
 
@@ -32,5 +33,5 @@ ex. Discord: [@gumshoe](https://discord.com/users/173155815312588800)
 
 ## Version History
 
-* 0.1
+* 0.4
     * Initial Release
