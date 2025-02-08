@@ -1,4 +1,4 @@
-# ShoeBot
+# Discord Text Channel Copier / Duplication Bot
 
 ## Description
 
@@ -14,9 +14,7 @@ npm install dotenv
 
 ### Installing
 
-* Use this link to invite this bot into your server:
-
-* In the main app directory, visit ``index.js`` to manually edit the channel ids you'd like to use
+Through the [Discord Development Portal](https://discord.com/developers/applications), create a new application. In the settings, visit "OAuth2", visit the OAuth2 URL generator, check "bot", then scroll down and check "Administrator" to invite your newly created bot into
 
 ### Executing program
 
