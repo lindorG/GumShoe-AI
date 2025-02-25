@@ -3,6 +3,7 @@ dotenv.config();
 
 import { Client, GatewayIntentBits, EmbedBuilder, SlashCommandBuilder, REST, Routes, PermissionsBitField } from 'discord.js';
 import fs from 'fs';
+import { exec } from 'child_process';
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const LAST_EMBED_FILE = 'last_embedded_message_id.txt';
@@ -43,6 +44,14 @@ const commands = [
         .addStringOption(option =>
             option.setName('targetchannel')
                 .setDescription('The ID of the target channel')
+                .setRequired(true)
+        ),
+    new SlashCommandBuilder()
+        .setName('ask_groq')
+        .setDescription('Ask Groq AI a question.')
+        .addStringOption(option =>
+            option.setName('question')
+                .setDescription('The question you want to ask Groq AI')
                 .setRequired(true)
         )
 ].map(command => command.toJSON());
@@ -155,6 +164,22 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply({
             content: `✅ Successfully copied messages from <#${sourceChannelId}> to <#${targetChannelId}>.`,
             ephemeral: true
+        });
+    } else if (interaction.commandName === 'ask_groq') {
+        const question = interaction.options.getString('question');
+
+        await interaction.deferReply();
+
+        exec(`python groq_chat.py "${question}"`, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error executing Python script: ${error.message}`);
+                return interaction.followUp('⚠️ An error occurred while processing your request.');
+            }
+            if (stderr) {
+                console.error(`Python script stderr: ${stderr}`);
+                return interaction.followUp('⚠️ An error occurred while processing your request.');
+            }
+            interaction.followUp(stdout.trim());
         });
     }
 });
