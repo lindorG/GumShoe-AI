@@ -47,11 +47,11 @@ const commands = [
                 .setRequired(true)
         ),
     new SlashCommandBuilder()
-        .setName('ask_groq')
-        .setDescription('Ask Groq AI a question.')
+        .setName('ask_gumshoe')
+        .setDescription('Ask GumShoe AI a question.')
         .addStringOption(option =>
             option.setName('question')
-                .setDescription('The question you want to ask Groq AI')
+                .setDescription('The question you want to ask GumShoe AI')
                 .setRequired(true)
         )
 ].map(command => command.toJSON());
@@ -165,12 +165,12 @@ client.on('interactionCreate', async interaction => {
             content: `✅ Successfully copied messages from <#${sourceChannelId}> to <#${targetChannelId}>.`,
             ephemeral: true
         });
-    } else if (interaction.commandName === 'ask_groq') {
+    } else if (interaction.commandName === 'ask_gumshoe') {
         const question = interaction.options.getString('question');
 
         await interaction.deferReply();
 
-        exec(`python groq_chat.py "${question}"`, (error, stdout, stderr) => {
+        exec(`python ask_gumshoe.py "${question}"`, (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error executing Python script: ${error.message}`);
                 return interaction.followUp('⚠️ An error occurred while processing your request.');
